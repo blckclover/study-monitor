@@ -99,6 +99,12 @@ too, because "no commits" and "git is broken" look identical in an empty dict
 and only one of them is true. A silent failure here would produce a clean,
 reassuring, wrong report — the worst possible output for this particular tool.
 
+Loud is not enough, though. The first real failure — Solari's gateway
+returning 503 on session create — surfaced only as `exhausted 2 attempts`,
+because the SDK keeps the underlying error on `err.cause` instead of chaining
+it. `fetch_tft_days()` now unwraps it, so a failure says *why*, not just
+*that*.
+
 **The baseline is computed over a longer span than the window.** A three-day
 average compared against three days of data is the same numbers said twice.
 

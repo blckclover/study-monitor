@@ -17,7 +17,7 @@ import os
 import subprocess
 import zoneinfo
 
-from solari_browser import Solari
+from solari_browser import Solari, SolariError
 
 # 從 .env 讀金鑰,不要每次開新終端機都手動設 —— 手動貼來貼去,
 # 遲早有一次會貼到不該貼的地方。.env 已經在 .gitignore 裡。
@@ -52,7 +52,19 @@ async def fetch_tft_days() -> dict[str, dict]:
     飛過去的當下把 body 攔下來。不事後重打——重打會拿到空 list。
     """
     solari = Solari(api_key=os.environ["SOLARI_API_KEY"])
-    browser = await solari.launch()
+
+    # SDK 把真正的原因塞在 err.cause / err.status 裡,不會出現在 traceback 上。
+    # 只印「exhausted 2 attempts」等於只說了「壞了」,沒說「為什麼壞」——
+    # 大聲失敗還不夠,失敗要帶著原因。
+    try:
+        browser = await solari.launch()
+    except SolariError as err:
+        raise RuntimeError(
+            f"開不了 Solari 瀏覽器:{err}\n"
+            f"  HTTP status:{err.status}\n"
+            f"  gateway code:{err.code}\n"
+            f"  底層原因:{err.cause!r}"
+        ) from err
 
     payload = None
     errors = []
