@@ -1,0 +1,10 @@
+# 只列直接用到的套件。其餘(solari-core、patchright、httpx...)由這些套件自己帶進來。
+# 產生方式:手寫,不是 pip freeze —— freeze 出來的是整包相依樹,別人讀不出你到底用了什麼。
+
+anthropic==1.0.0
+solari-sandbox==0.2.0
+solari-browser==0.1.3
+python-dotenv==1.2.3
+
+# zoneinfo 在 Windows 上沒有內建的 IANA 時區資料庫,少了這個 monitor.py 會直接炸。
+tzdata==2026.3 ; sys_platform == "win32"

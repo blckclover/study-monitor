@@ -1,0 +1,15 @@
+# Secrets
+.env
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Generated reports contain real personal hours — keep them local.
+# To show one in the README, paste a chosen report in by hand.
+reports/
+
+# Spike scratch output
+spikes/out.txt
+spikes/sample.json
