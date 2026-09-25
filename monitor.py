@@ -59,6 +59,7 @@ async def fetch_tft_days() -> dict[str, dict]:
     try:
         browser = await solari.launch()
     except SolariError as err:
+        await solari.close()
         raise RuntimeError(
             f"開不了 Solari 瀏覽器:{err}\n"
             f"  HTTP status:{err.status}\n"
@@ -91,6 +92,10 @@ async def fetch_tft_days() -> dict[str, dict]:
         await asyncio.sleep(3)  # 讓還在飛的回應收完
     finally:
         await browser.close()
+        # browser.close() 只釋放雲端那個 session。本機還有一個 patchright driver
+        # 子行程,要 solari.close() 才會停 —— 沒停的話,Python 結束時會噴一串
+        # "unclosed transport / I/O operation on closed pipe"。
+        await solari.close()
 
     # 失敗要留痕跡,不能沉默地回傳空的 —— 沉默的失敗比看得見的失敗危險
     if payload is None:

@@ -38,12 +38,22 @@ a thing any of them measure.**
 
 ## What it looks like
 
-```
-TODO: 貼一份真實的報告進來
-```
+A real report, unedited (Sept 25, 11am — so the last row is a partial day):
 
-<!-- 用 reports/ 裡任何一份。如果覺得時數太私密,可以只留日期跟相對比例,
-     但我的建議是照貼 —— 真實數字是這個專案唯一的說服力來源。 -->
+```
+過去 3 天        TFT 平均 5.1h/天(取樣 6 天)
+
+  日期          TFT     產出
+  ----------------------------------------
+  09-23 Wed      3.5h   commit x2
+  09-24 Thu     10.5h   —   <- 期間最高
+  09-25 Fri      1.2h   —
+  ----------------------------------------
+  合計           15.3h
+
+你記下的下一步:
+  (這一塊還沒接上 —— fetch_stated_intentions() 尚未實作)
+```
 
 ---
 
