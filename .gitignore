@@ -13,3 +13,6 @@ reports/
 # Spike scratch output
 spikes/out.txt
 spikes/sample.json
+
+# 寫給自己的話 —— 私人的,跟 reports/ 一樣不公開
+notes.jsonl

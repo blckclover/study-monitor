@@ -13,6 +13,7 @@
 
 import asyncio
 import datetime
+import json
 import os
 import subprocess
 import zoneinfo
@@ -151,33 +152,77 @@ def fetch_output_days(days: int = WINDOW_DAYS) -> dict[str, int]:
 
 
 # ---------------------------------------------------------------------------
-# 來源 3:你說過的下一步  —— TODO(你的部分,這個最有意思)
+# 來源 3:你寫給自己的話
 # ---------------------------------------------------------------------------
+# 9/28 的設計決定:
+#   - 不從 transcript.md 用 LLM 猜承諾。改成工具自己產生自己的輸入:
+#     每天看完報告寫一句話給明天,明天的報告把它擺回你面前。
+#   - 「做了沒」由你自己標,不是工具判斷。標準是你訂的,判斷也是你的。
+#   - 只問最新一筆。跳過的日子就讓它過去,不追討。
 
-def fetch_stated_intentions() -> list[dict]:
-    """回傳 [{"date": "09-04", "text": "看 Solari 的 browser 能力"}, ...]
+NOTES_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "notes.jsonl")
 
-    transcript.md 是散文,沒有「下一步」這個欄位,那些話散在段落裡而且
-    每次寫法都不一樣。這是 LLM 的工作,不是 regex 的工作。
 
-    要自己想的:
-      1. 餵多少內容給 Claude?(整份 transcript 會太長)
-      2. system prompt 怎麼寫,才會拿到穩定的 JSON?
-         (你 W2 練過的東西:格式規格 + few-shot 範例 + try/except)
-      3. 什麼樣的句子才算「一個承諾」?什麼不算?
-         —— 這個判斷標準要寫進 prompt 裡,而且它就是這支程式的核心判斷。
+def load_notes() -> list[dict]:
+    """讀出所有筆記,一行一筆 JSON。
 
-    現在先回傳空 list,讓整支程式能跑起來。但 build_report 必須把
-    「這一塊還沒接上」明白印出來 —— 缺席要看得見,不能靜靜地消失。
+    檔案不存在 = 還沒寫過任何一筆,這是正常狀態,回傳空 list。
+    但某一行壞掉的話會直接炸 —— 那是真的出錯了,不能靜靜跳過。
     """
-    return []
+    if not os.path.exists(NOTES_PATH):
+        return []
+    notes = []
+    with open(NOTES_PATH, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                notes.append(json.loads(line))
+    return notes
+
+
+def save_notes(notes: list[dict]) -> None:
+    with open(NOTES_PATH, "w", encoding="utf-8") as f:
+        for n in notes:
+            f.write(json.dumps(n, ensure_ascii=False) + "\n")
+
+
+def ask_about_latest(notes: list[dict]) -> dict | None:
+    """問最新那一筆「做了嗎?」,回傳那一筆(沒有任何筆記就回傳 None)。
+
+    不問的情況:
+      - 已經回答過了(done 不是 None)
+      - 那一筆是今天才寫的 —— 一天跑兩次的話,不該問你一小時前寫的東西
+    """
+    if not notes:
+        return None
+    latest = notes[-1]
+    today = datetime.datetime.now(TZ).strftime("%Y-%m-%d")
+    if latest["done"] is None and latest["date"] != today:
+        while True:
+            ans = input(f"{latest['date'][5:]} 你寫了:「{latest['note']}」—— 做了嗎?(y/n) ").strip().lower()
+            if ans in ("y", "n"):
+                latest["done"] = (ans == "y")
+                save_notes(notes)
+                break
+            print("  請輸入 y 或 n")
+    return latest
+
+
+def write_note_for_tomorrow(notes: list[dict]) -> str:
+    """問一句給明天的話,存起來,回傳那句話(直接 Enter 就是空字串)。"""
+    text = input("寫一句話給明天的自己(直接 Enter 跳過):").strip()
+    if text:
+        today = datetime.datetime.now(TZ).strftime("%Y-%m-%d")
+        notes.append({"date": today, "note": text, "done": None})
+        save_notes(notes)
+    return text
 
 
 # ---------------------------------------------------------------------------
 # 組裝  —— TODO(你的部分。這是你設計的東西,不該由我寫)
 # ---------------------------------------------------------------------------
 
-def build_report(tft, output, intentions, days: int = WINDOW_DAYS) -> str:
+def build_report(tft, output, latest_note, days: int = WINDOW_DAYS) -> str:
     """把三個來源併成那張表。
 
     9/10 定案的形狀:
@@ -197,9 +242,8 @@ def build_report(tft, output, intentions, days: int = WINDOW_DAYS) -> str:
       2. 要有比較基準(平均、最高值),不然單一數字沒有資訊量
       3. 「你自己說過的話」要出現 —— 標準是你訂的,不是這支程式訂的
 
-    intentions 現在會是空的(那支還沒寫)。這種情況要在輸出裡
-    明講「這一塊還沒接上」,不要當它不存在 —— 不然你會看著一份
-    少了一整個區塊的報告,卻以為自己看到的是完整的。
+    latest_note 是 None 的時候(還沒寫過任何一筆),要在輸出裡明講,
+    不要讓整個區塊消失 —— 缺席要看得見。
     """
     # 窗口由這裡產生,不是由來源決定。
     # 原因:兩個來源涵蓋的範圍本來就不一樣(TFT 是最近 50 場,
@@ -239,27 +283,39 @@ def build_report(tft, output, intentions, days: int = WINDOW_DAYS) -> str:
     lines.append("  " + "-" * 40)
     lines.append(f"  {'合計':<11}  {total:>4.1f}h")
     lines.append("")
-    lines.append("你記下的下一步:")
+    lines.append("你上次寫給自己的話:")
 
-    if intentions:
-        for item in intentions:
-            lines.append(f"  {item['date']}  「{item['text']}」")
-    else:
+    if latest_note is None:
         # 缺席要看得見
-        lines.append("  (這一塊還沒接上 —— fetch_stated_intentions() 尚未實作)")
+        lines.append("  (還沒有任何一筆 —— 今天看完報告,寫下第一句)")
+    else:
+        status = {True: "做了", False: "沒做", None: "還沒問"}[latest_note["done"]]
+        lines.append(f"  {latest_note['date'][5:]}  「{latest_note['note']}」   -> {status}")
 
     return "\n".join(lines)
 
 
 async def main() -> None:
+    # 順序是 9/28 你自己定的:
+    # 1. 先問上次那句「做了嗎」—— 在看到今天的數字之前,用記憶回答,
+    #    而且答案要出現在今天這份報告裡,所以一定在組報告之前。
+    notes = load_notes()
+    latest = ask_about_latest(notes)
+
+    # 2. 抓資料、組報告
     tft = await fetch_tft_days()
     output = fetch_output_days()
-    intentions = fetch_stated_intentions()
-    report = build_report(tft, output, intentions)
+    report = build_report(tft, output, latest)
 
+    # 3. 先印出來 —— 看完才寫得出給明天的話
     print(report)
+    print()
+    note = write_note_for_tomorrow(notes)
+    if note:
+        report += f"\n\n給明天的話:\n  「{note}」"
 
-    # 每次執行都留一份。一個每三天跑一次的工具,歷次報告本身就是資料——
+    # 4. 最後才存檔 —— 這樣每一份都是「當天的數字 + 你寫的那句話」,一天一篇。
+    # 每次執行都留一份。歷次報告本身就是資料——
     # 之後想看「這個月跟上個月比」的時候,靠的就是這堆檔案。
     # (reports/ 已加進 .gitignore:裡面是你的實際時數,不該進公開 repo。
     #  要放進 README 的話,自己挑一份貼過去。)
