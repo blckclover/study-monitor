@@ -65,7 +65,7 @@ Three sources, each needing a different capability:
 |---|---|---|
 | Leisure hours | tactics.tools, via a Solari cloud browser | No public API, no login for public profiles. The numbers exist only in a single XHR response on a SPA. |
 | Actual output | local `git log` | Commits are the one output signal that carries its own timestamp. |
-| Stated intentions | an LLM over my own study log | The log is prose. There is no "next step" field. Regex cannot find a promise; a model can. |
+| What I said I'd do | a line I type at the end of each run, saved to `notes.jsonl` | The tool writes its own input. The next run puts that line back in front of me and asks whether I did it. |
 
 ### Why a cloud browser and not a scraper
 
@@ -145,22 +145,30 @@ data for the next comparison, so it accumulates rather than overwriting.
 
 ## Not done yet
 
-- `fetch_stated_intentions()` is a stub. The hard part is not the API call, it
-  is the judgment written into the prompt: **what counts as a promise?**
-  That criterion is the core of the tool, so it is being written last, not first.
 - The output signal is `git log`, which misses work that was never committed.
   Under-counting output is a false negative in a tool whose whole value is not
   lying to you. Open question.
 - Solari can record a session as rrweb replay via `launch(recording=True)`.
   Not wired up; it would make failures diagnosable after the fact.
 
-## Where it goes next
+## The third source: a note to tomorrow
 
-Right now the tool only reads. The next version lets you write back: after it
-prints the day, it asks for a line or two — what you thought, what you want
-tomorrow's version of you to know. That note goes back in as input, so the next
-report shows you what you told yourself yesterday, next to what you actually
-did about it.
+At the end of each run the tool asks for one line to tomorrow's version of me,
+and saves it. The next run starts by showing that line and asking one
+question: *did you do it?* (y/n). The answer goes into that day's report, next
+to the hours and the commits.
 
-That closes the loop the third source is currently reaching for, and it makes
-the loop the tool's own: said -> did -> saw -> said.
+Three choices went into this:
+
+- **I mark it, not the tool.** The standard is one I set myself, so the
+  judgment has to be mine too. The tool can't see work that never got
+  committed anyway (see above). The one who actually knows is me.
+- **It asks before showing the numbers.** I answer from memory, not after the
+  data has already nudged me.
+- **Only the latest note gets asked about.** A skipped day just goes by. The
+  tool doesn't come back to collect on it.
+
+The first design was different: an LLM reading my study log and pulling out
+"promises" from prose. I dropped it. It depended on a file I had stopped
+updating, which is exactly the thing this tool is supposed to catch.
+Writing the input inside the tool closes the loop: said -> did -> saw -> said.
