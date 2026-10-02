@@ -38,21 +38,25 @@ a thing any of them measure.**
 
 ## What it looks like
 
-A real report, unedited (Sept 25, 11am — so the last row is a partial day):
+A real report, unedited. Oct 2, 9:22am, the first run of the day, so today's row is still empty.
+The note from Sept 30 comes back and gets asked about before the numbers are shown.
 
 ```
-過去 3 天        TFT 平均 5.1h/天(取樣 6 天)
+過去 3 天        TFT 平均 4.4h/天(取樣 7 天)
 
   日期          TFT     產出
   ----------------------------------------
-  09-23 Wed      3.5h   commit x2
-  09-24 Thu     10.5h   —   <- 期間最高
-  09-25 Fri      1.2h   —
+  09-30 Wed      4.3h   commit x1   <- 期間最高
+  10-01 Thu         —   —
+  10-02 Fri         —   —
   ----------------------------------------
-  合計           15.3h
+  合計            4.3h
 
-你記下的下一步:
-  (這一塊還沒接上 —— fetch_stated_intentions() 尚未實作)
+你上次寫給自己的話:
+  09-30  「早點睡你可以的 我相信你 加油」   -> 做了
+
+給明天的話:
+  「練習加油」
 ```
 
 ---
@@ -140,6 +144,11 @@ Each run prints the report and saves a copy to `reports/`. That history is the
 data for the next comparison, so it accumulates rather than overwriting.
 
 `reports/` and `.env` are gitignored.
+
+It runs itself. A tool meant to catch what you don't notice can't depend on you
+remembering to open it. In the first week, a 7:30pm calendar reminder got me to
+run it once out of four evenings. Now Windows Task Scheduler opens it every
+morning at 9:30, and runs it at the next startup if the machine was off.
 
 ---
 
